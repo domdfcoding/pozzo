@@ -1,0 +1,39 @@
+[config]
+# Path to godot executable or command name
+godot = "godot4.3"
+
+# Number of times to import resources to ensure fully imported.
+import_cycles = 2
+
+# Whether to check out git submodules prior to building
+checkout_submodules = true
+
+
+[exports."Linux Release"]
+
+# Alternative export preset file, relative to the repository root.
+preset_file = "export_presets.cfg"
+
+# Name of the export preset in `export_presets.cfg` (or the path specified in preset_file)
+preset = "Linux"
+
+# Filename to export to
+filename = "TomesTime.x86_64"
+
+# One of release, debug, patch
+mode = "release"
+
+# Whether to zip the directory contents (if exporting multiple files e.g. not embedded pck or
+zip = false
+
+
+[exports."Linux Debug"]
+
+# Any options not specified here are taken from the given table name
+extends = "Linux Release"
+
+# Filename to export to
+filename = "TomesTime.debug.x86_64"
+
+# One of release, debug, patch
+mode = "debug"
