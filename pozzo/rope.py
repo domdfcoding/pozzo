@@ -44,7 +44,7 @@ from domdf_python_tools.paths import PathPlus, TemporaryPathPlus
 from domdf_python_tools.typing import PathLike
 
 # this package
-from pozzo.config import PozzoConfigDict
+from pozzo.config import ExportTableDict, PozzoConfigDict
 from pozzo.utils import ProgressBar, has_pathsep
 
 __all__ = [
@@ -270,7 +270,7 @@ class Exporter:
 		self.project_dir = PathPlus(project_dir)
 		self.output_dir = PathPlus(output_dir)
 		self.config = config
-		self.progbar = ProgressBar(total=config["config"]["import_cycles"] + len(config["exports"]))
+		self.progbar = ProgressBar()
 
 	def run_command(self, command: Callable[..., _CommandRet], *args, **kwargs) -> CommandResult:
 		r"""
@@ -299,92 +299,115 @@ class Exporter:
 				return_code == 0,
 				)
 
-	# TODO: function to export selected artifacts passed by e.g. command line
+	def _clone(self, workdir: PathPlus) -> None:
+		self.progbar.info("Cloning project into fresh directory.")
+
+		clone_result = self.run_command(
+				clone_project,
+				self.project_dir,
+				workdir,
+				self.config["config"]["checkout_submodules"],
+				)
+		if not clone_result.succeeded:
+			raise RuntimeError("Failed to clone repository.")
+
+		self.progbar.update()
+
+	def _import(self, workdir: PathPlus) -> None:
+		self.progbar.info("Importing resources.")
+
+		for _ in range(self.config["config"]["import_cycles"]):
+
+			import_result = self.run_command(import_resources, workdir, self.config["config"]["godot"])
+			if not import_result.succeeded:
+				raise RuntimeError("Godot failed to import resources.")
+
+			self.progbar.update()
+
+	def _export(self, export_name: str, export_cfg: ExportTableDict, workdir: PathPlus) -> Iterator[PathPlus]:
+		if export_cfg["preset_file"] != "export_presets.cfg":
+			raise NotImplementedError
+
+		with TemporaryPathPlus() as export_output_dir:
+			export_result = self.run_command(
+					export,
+					workdir,
+					export_cfg["preset"],
+					export_cfg["filename"],
+					export_output_dir,
+					export_cfg["mode"],
+					self.config["config"]["godot"],
+					)
+
+			assert not has_pathsep(export_name)
+
+			if export_result.succeeded:
+				if export_cfg["zip"]:
+
+					self.progbar.write(stdout_indent + Style.BRIGHT("Creating ZIP archive."))
+					with TemporaryPathPlus() as zip_outdir:
+
+						zip_outfile = zip_outdir / f"{export_cfg['zip']}.zip"
+
+						for arcname in zip_directory(export_output_dir, zip_outfile):
+							self.progbar.write(stdout_indent * 2 + f"Writing {arcname.as_posix()}")
+
+						self.progbar.write(
+								stdout_indent
+								+ Fore.GREEN(f"Zip archive created at {zip_outfile.resolve().as_posix()}"),
+								)
+
+						yield (move_artifact(zip_outfile, self.output_dir))
+				else:
+					for artifact in export_output_dir.iterdir():
+						yield (move_artifact(artifact, self.output_dir))
+
+		log_filename = (self.output_dir / f"{export_name}.log")
+		log_filename.write_clean(export_result.log)
+		yield (log_filename)
+
+		self.progbar.update()
 
 	def export_all(self) -> List[PathPlus]:
 		"""
 		Clone, import resources and export all artifacts.
 		"""
 
+		return self.export(*self.config["exports"])
+
+	def export(self, *export_names: str) -> List[PathPlus]:
+		r"""
+		Clone, import resources and export artifacts.
+
+		:param \*export_names: The names of export configurations in ``config.toml``.
+		"""
+
+		for name in export_names:
+			if name not in self.config["exports"]:
+				raise ValueError(f"No such export configuration {name!r}")
+
 		self.output_dir.maybe_make(parents=True)
 		artifacts = []
 
+		self.progbar.set_total(1 + self.config["config"]["import_cycles"] + len(export_names))
 		with TemporaryPathPlus() as workdir:
 
-			self.progbar.info("Cloning project into fresh directory.")
-
-			clone_result = self.run_command(
-					clone_project,
-					self.project_dir,
-					workdir,
-					self.config["config"]["checkout_submodules"],
-					)
-			if not clone_result.succeeded:
-				raise RuntimeError("Failed to clone repository.")
-
-			self.progbar.update()
-
-			#
+			self._clone(workdir)
 
 			self.progbar.write('')
-			self.progbar.info("Importing resources.")
-
-			for _ in range(self.config["config"]["import_cycles"]):
-
-				import_result = self.run_command(import_resources, workdir, self.config["config"]["godot"])
-				if not import_result.succeeded:
-					raise RuntimeError("Godot failed to import resources.")
-
-			self.progbar.update()
+			self._import(workdir)
 
 			#
 
 			for export_name, export_cfg in self.config["exports"].items():
+				if export_name not in export_names:
+					continue
 
 				self.progbar.write('')
 				self.progbar.info(f"Exporting {export_name!r}.")
 
-				if export_cfg["preset_file"] != "export_presets.cfg":
-					raise NotImplementedError
-
-				with TemporaryPathPlus() as export_output_dir:
-					export_result = self.run_command(
-							export,
-							workdir,
-							export_cfg["preset"],
-							export_cfg["filename"],
-							export_output_dir,
-							export_cfg["mode"],
-							self.config["config"]["godot"],
-							)
-
-					assert not has_pathsep(export_name)
-
-					if export_result.succeeded:
-						if export_cfg["zip"]:
-
-							self.progbar.write(stdout_indent + Style.BRIGHT("Creating ZIP archive."))
-							with TemporaryPathPlus() as zip_outdir:
-
-								zip_outfile = zip_outdir / f"{export_cfg['zip']}.zip"
-
-								for arcname in zip_directory(export_output_dir, zip_outfile):
-									self.progbar.write(stdout_indent * 2 + f"Writing {arcname.as_posix()}")
-
-								self.progbar.write(
-										stdout_indent
-										+ Fore.GREEN(f"Zip archive created at {zip_outfile.resolve().as_posix()}"),
-										)
-
-								artifacts.append(move_artifact(zip_outfile, self.output_dir))
-						else:
-							for artifact in export_output_dir.iterdir():
-								artifacts.append(move_artifact(artifact, self.output_dir))
-
-				log_filename = (self.output_dir / f"{export_name}.log")
-				log_filename.write_clean(export_result.log)
-				artifacts.append(log_filename)
-				self.progbar.update()
+				for artifact in self._export(export_name, export_cfg, workdir):
+					artifacts.append(artifact)
 
 		return artifacts
 

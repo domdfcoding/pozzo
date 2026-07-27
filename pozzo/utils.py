@@ -54,6 +54,8 @@ class ProgressBar(tqdm.tqdm):  # noqa: PRM002
 	Customised ``tqdm`` progressbar.
 	"""
 
+	total: int
+
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 
@@ -118,3 +120,13 @@ class ProgressBar(tqdm.tqdm):  # noqa: PRM002
 				self.write(Fore.YELLOW(message))
 			else:
 				self.write(message)
+
+	def set_total(self, total: int) -> None:
+		"""
+		Set the total for the progressbar and reset progress to ``0``.
+
+		:param total:
+		"""
+
+		self.total = total
+		self.update(0)
