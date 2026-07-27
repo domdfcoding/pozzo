@@ -27,14 +27,18 @@ Call Godot to create exports.
 #
 
 # stdlib
+import datetime
 import os
 import shlex
 import shutil
 import subprocess
+import sys
 import typing
+import zipfile
 from typing import Callable, Generator, Iterable, List, Literal, NamedTuple, Optional, Tuple
 
 # 3rd party
+import handy_archives
 from consolekit.terminal_colours import Fore, Style
 from domdf_python_tools.paths import PathPlus, TemporaryPathPlus
 from domdf_python_tools.typing import PathLike
@@ -58,6 +62,8 @@ __all__ = [
 T = typing.TypeVar('T')
 U = typing.TypeVar('U')
 V = typing.TypeVar('V')
+
+stdout_indent = "    "
 
 
 class ProcessOutput(typing.Generic[T, U, V]):
@@ -188,7 +194,7 @@ class CommandResult(NamedTuple):
 	succeeded: bool
 
 
-def join_args(split_command: Iterable[PathLike]):
+def join_args(split_command: Iterable[PathLike]) -> str:
 	"""
 	Return a shell-escaped string from ``split_command``.
 
@@ -199,7 +205,6 @@ def join_args(split_command: Iterable[PathLike]):
 
 
 def run_command(command: Callable, *args, **kwargs) -> CommandResult:
-	stdout_indent = "    "
 	log = []
 
 	command_args, process = command(*args, **kwargs)
@@ -263,17 +268,70 @@ def export_project(project_dir: PathPlus, output_dir: PathPlus, config: PozzoCon
 						config["config"]["godot"],
 						)
 
+				assert not has_pathsep(export_name)
+
 				if export_result.succeeded:
 					if export_cfg["zip"]:
-						raise NotImplementedError
+
+						print(stdout_indent, Style.BRIGHT("Creating ZIP archive."))
+						with TemporaryPathPlus() as zip_outdir:
+							zip_outfile = zip_outdir / f"{export_cfg['zip']}.zip"
+							zip_directory(export_output_dir, zip_outfile)
+							artifacts.append(move_artifact(zip_outfile, output_dir))
 					else:
 						for artifact in export_output_dir.iterdir():
-							dst = output_dir / artifact.name
-							artifacts.append(artifact.move(dst))
+							artifacts.append(move_artifact(artifact, output_dir))
 
-				assert not has_pathsep(export_name)
 				log_filename = (output_dir / f"{export_name}.log")
 				log_filename.write_clean(export_result.log)
 				artifacts.append(log_filename)
 
 	return artifacts
+
+
+def move_artifact(artifact: PathPlus, output_dir: PathPlus) -> PathPlus:
+	dst = output_dir / artifact.name
+	return artifact.move(dst)
+
+
+def get_source_epoch() -> Optional[datetime.datetime]:
+	"""
+	Returns the parsed value of the :envvar:`SOURCE_DATE_EPOCH` environment variable, or :py:obj:`None` if unset.
+
+	See https://reproducible-builds.org/specs/source-date-epoch/ for the specification.
+
+	:raises ValueError: if the value is in an invalid format.
+	"""
+
+	# If SOURCE_DATE_EPOCH is set (e.g. by Debian), it's used for timestamps inside the wheel.
+	epoch: Optional[str] = os.environ.get("SOURCE_DATE_EPOCH")
+	if epoch is None:
+		return None
+	elif epoch.isdigit() and sys.version_info >= (3, 11):
+		return datetime.datetime.fromtimestamp(int(epoch), datetime.UTC)  # type: ignore[attr-defined]
+	elif epoch.isdigit():
+		return datetime.datetime.utcfromtimestamp(int(epoch))
+	else:
+		raise ValueError(f"'SOURCE_DATE_EPOCH' must be an integer with no fractional component, not {epoch!r}")
+
+
+def zip_directory(directory: PathPlus, out_file: PathPlus) -> List[PathPlus]:
+
+	mtime = get_source_epoch()
+	files = list(directory.iterchildren())
+
+	# Perhaps LZMA support in the future
+	with handy_archives.ZipFile(out_file, mode='w', compression=zipfile.ZIP_DEFLATED) as wheel_archive:
+		for file in files:
+			wheel_archive.write_file(
+					file,
+					arcname=file.relative_to(directory),
+					mtime=mtime,
+					)
+
+			# TODO: iterator
+			print(stdout_indent * 2, f"Writing {file.relative_to(directory).as_posix()}")
+
+	print(stdout_indent * 2, Fore.GREEN(f"Zip archive created at {out_file.resolve().as_posix()}"))
+
+	return files

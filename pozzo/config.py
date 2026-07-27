@@ -27,7 +27,7 @@ Parse TOML config.
 #
 
 # stdlib
-from typing import Any, Callable, ClassVar, Dict, List, cast
+from typing import Any, Callable, ClassVar, Dict, List, Optional, Union, cast
 
 # 3rd party
 from dom_toml.parser import TOML_TYPES, AbstractConfigParser, BadConfigError, construct_path
@@ -66,7 +66,7 @@ class ExportTableDict(TypedDict):
 	preset: Required[str]
 	filename: Required[str]
 	mode: NotRequired[str]
-	zip: NotRequired[bool]
+	zip: NotRequired[Union[str, None]]
 	extends: NotRequired[str]
 
 
@@ -185,7 +185,7 @@ class ExportTableParser(AbstractConfigParser[ExportTableDict]):
 	defaults: ClassVar[Dict[str, Any]] = {
 			"preset_file": "export_presets.cfg",
 			"mode": "release",
-			"zip": False,
+			"zip": None,
 			"extends": None,
 			}
 
@@ -242,7 +242,7 @@ class ExportTableParser(AbstractConfigParser[ExportTableDict]):
 		self.assert_type(value, str, key_path)
 		return value
 
-	def parse_zip(self, config: Dict[str, TOML_TYPES]) -> bool:
+	def parse_zip(self, config: Dict[str, TOML_TYPES]) -> Optional[str]:
 		"""
 		Parse the ``zip`` key.
 
@@ -252,11 +252,11 @@ class ExportTableParser(AbstractConfigParser[ExportTableDict]):
 		key_name = "zip"
 		key_path = [self.table_name, self.export_name, key_name]
 		value = config[key_name]
-		self.assert_type(value, (str, int, bool), key_path)
 
-		if not isinstance(value, bool):
-			value = strtobool(value)
+		if value is None:
+			return None
 
+		self.assert_type(value, str, key_path)
 		return value
 
 	def parse(

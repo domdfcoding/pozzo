@@ -23,9 +23,6 @@ filename = "TomesTime.x86_64"
 # One of release, debug, patch
 mode = "release"
 
-# Whether to zip the directory contents (if exporting multiple files e.g. not embedded pck or
-zip = false
-
 
 [exports."Linux Debug"]
 
@@ -37,3 +34,22 @@ filename = "TomesTime.debug.x86_64"
 
 # One of release, debug, patch
 mode = "debug"
+
+
+
+[exports."Web"]
+
+# Alternative export preset file, relative to the repository root.
+# preset_file = "export_presets.cfg"
+
+# Name of the export preset in `export_presets.cfg` (or the path specified in preset_file)
+preset = "Web"
+
+# Filename to export to
+filename = "index.html"
+
+# One of release, debug, pack, patch
+mode = "release"
+
+# Optional zip file name to compress output artifacts into (e.g. not embedding pck or web build)
+zip = "TomesTimeWeb.zip"
