@@ -81,7 +81,7 @@ class PozzoConfigDict(TypedDict):
 
 class ConfigTableParser(AbstractConfigParser[ConfigTableDict]):
 	"""
-	Parser for the ``config`` table in ``config.toml``.
+	Parser for the ``config`` table in ``pozzo.toml``.
 	"""
 
 	table_name: ClassVar[str] = "config"
@@ -93,7 +93,7 @@ class ConfigTableParser(AbstractConfigParser[ConfigTableDict]):
 		"""
 		Parse the ``godot`` key.
 
-		:param config: The unparsed TOML config for the ``config`` table in ``config.toml``.
+		:param config: The unparsed TOML config for the ``config`` table in ``pozzo.toml``.
 		"""
 
 		key_name = "godot"
@@ -106,7 +106,7 @@ class ConfigTableParser(AbstractConfigParser[ConfigTableDict]):
 		"""
 		Parse the ``import_cycles`` key.
 
-		:param config: The unparsed TOML config for the ``config`` table in ``config.toml``.
+		:param config: The unparsed TOML config for the ``config`` table in ``pozzo.toml``.
 		"""
 
 		key_name = "import_cycles"
@@ -124,7 +124,7 @@ class ConfigTableParser(AbstractConfigParser[ConfigTableDict]):
 		"""
 		Parse the ``checkout_submodules`` key.
 
-		:param config: The unparsed TOML config for the ``config`` table in ``config.toml``.
+		:param config: The unparsed TOML config for the ``config`` table in ``pozzo.toml``.
 		"""
 
 		key_name = "checkout_submodules"
@@ -166,7 +166,7 @@ class ConfigTableParser(AbstractConfigParser[ConfigTableDict]):
 
 class ExportTableParser(AbstractConfigParser[ExportTableDict]):
 	"""
-	Parser for a child of the ``exports`` table in ``config.toml``.
+	Parser for a child of the ``exports`` table in ``pozzo.toml``.
 
 	:param export_name:
 	"""
@@ -197,7 +197,7 @@ class ExportTableParser(AbstractConfigParser[ExportTableDict]):
 		"""
 		Parse the ``preset_file`` key.
 
-		:param config: The unparsed TOML config for a child of the ``exports`` table in ``config.toml``.
+		:param config: The unparsed TOML config for a child of the ``exports`` table in ``pozzo.toml``.
 		"""
 
 		return self.string_value_parser("preset_file", config)
@@ -206,7 +206,7 @@ class ExportTableParser(AbstractConfigParser[ExportTableDict]):
 		"""
 		Parse the ``preset`` key.
 
-		:param config: The unparsed TOML config for a child of the ``exports`` table in ``config.toml``.
+		:param config: The unparsed TOML config for a child of the ``exports`` table in ``pozzo.toml``.
 		"""
 
 		return self.string_value_parser("preset", config)
@@ -215,7 +215,7 @@ class ExportTableParser(AbstractConfigParser[ExportTableDict]):
 		"""
 		Parse the ``filename`` key.
 
-		:param config: The unparsed TOML config for a child of the ``exports`` table in ``config.toml``.
+		:param config: The unparsed TOML config for a child of the ``exports`` table in ``pozzo.toml``.
 		"""
 
 		return self.string_value_parser("filename", config)
@@ -224,7 +224,7 @@ class ExportTableParser(AbstractConfigParser[ExportTableDict]):
 		"""
 		Parse the ``mode`` key.
 
-		:param config: The unparsed TOML config for a child of the ``exports`` table in ``config.toml``.
+		:param config: The unparsed TOML config for a child of the ``exports`` table in ``pozzo.toml``.
 		"""
 
 		return self.string_value_parser("mode", config)
@@ -234,7 +234,7 @@ class ExportTableParser(AbstractConfigParser[ExportTableDict]):
 		Parse a string value.
 
 		:param key_name:
-		:param config: The unparsed TOML config for a child of the ``exports`` table in ``config.toml``.
+		:param config: The unparsed TOML config for a child of the ``exports`` table in ``pozzo.toml``.
 		"""
 
 		key_path = [self.table_name, self.export_name, key_name]
@@ -246,7 +246,7 @@ class ExportTableParser(AbstractConfigParser[ExportTableDict]):
 		"""
 		Parse the ``zip`` key.
 
-		:param config: The unparsed TOML config for the ``config`` table in ``config.toml``.
+		:param config: The unparsed TOML config for the ``config`` table in ``pozzo.toml``.
 		"""
 
 		key_name = "zip"
@@ -290,7 +290,7 @@ class ExportTableParser(AbstractConfigParser[ExportTableDict]):
 
 class PozzoConfigParser(AbstractConfigParser[PozzoConfigDict]):
 	"""
-	Parser for ``config.toml``.
+	Parser for ``pozzo.toml``.
 	"""
 
 	required_keys: ClassVar[List[str]] = []
@@ -301,7 +301,7 @@ class PozzoConfigParser(AbstractConfigParser[PozzoConfigDict]):
 		"""
 		Parse the ``config`` key.
 
-		:param config: The unparsed TOML config from the ``config.toml`` file.
+		:param config: The unparsed TOML config from the ``pozzo.toml`` file.
 		"""
 
 		key_name = "config"
@@ -315,7 +315,7 @@ class PozzoConfigParser(AbstractConfigParser[PozzoConfigDict]):
 		"""
 		Parse the ``exports`` key.
 
-		:param config: The unparsed TOML config from the ``config.toml`` file.
+		:param config: The unparsed TOML config from the ``pozzo.toml`` file.
 		"""
 
 		key_name = "exports"

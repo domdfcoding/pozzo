@@ -379,7 +379,7 @@ class Exporter:
 		r"""
 		Clone, import resources and export artifacts.
 
-		:param \*export_names: The names of export configurations in ``config.toml``.
+		:param \*export_names: The names of export configurations in ``pozzo.toml``.
 		"""
 
 		for name in export_names:
