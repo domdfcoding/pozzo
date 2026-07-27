@@ -97,11 +97,14 @@ class ProcessOutput(typing.Generic[T, U, V]):
 		self.return_code = yield from self._generator
 
 
+_CommandRet = Tuple[List[PathLike], ProcessOutput[str, None, int]]
+
+
 def clone_project(
 		project_dir: PathPlus,
 		target_dir: PathPlus,
 		recursive: bool = False,
-		) -> Tuple[List[PathLike], ProcessOutput[str, None, int]]:
+		) -> _CommandRet:
 	"""
 	Make a clone of a git repository.
 
@@ -139,7 +142,7 @@ def clone_project(
 def import_resources(
 		project_dir: PathPlus,
 		godot: str = "godot",
-		) -> Tuple[List[str], ProcessOutput[str, None, int]]:
+		) -> _CommandRet:
 	"""
 	Call Godot to import resources.
 
@@ -149,7 +152,7 @@ def import_resources(
 	:returns: The command line arguments used, and the result of the process (stdout and return code).
 	"""
 
-	args = [godot, "--headless", "--import", "--verbose"]
+	args: List[PathLike] = [godot, "--headless", "--import", "--verbose"]
 
 	def _import() -> Generator[str, None, int]:
 		process = subprocess.Popen(
@@ -178,7 +181,7 @@ def export(
 		output_dir: PathPlus,
 		mode: Literal["release", "debug", "pack", "patch"] = "release",
 		godot: str = "godot",
-		) -> Tuple[List[PathLike], ProcessOutput[str, None, int]]:
+		) -> _CommandRet:
 	"""
 	Call Godot to export a given preset.
 
@@ -255,6 +258,13 @@ def join_args(split_command: Iterable[PathLike]) -> str:
 
 
 class Exporter:
+	"""
+	Clone and export Godot project repository.
+
+	:param project_dir:
+	:param output_dir:
+	:param config:
+	"""
 
 	def __init__(self, project_dir: PathLike, output_dir: PathLike, config: PozzoConfigDict):
 		self.project_dir = PathPlus(project_dir)
@@ -262,7 +272,15 @@ class Exporter:
 		self.config = config
 		self.progbar = ProgressBar(total=config["config"]["import_cycles"] + len(config["exports"]))
 
-	def run_command(self, command: Callable, *args, **kwargs) -> CommandResult:
+	def run_command(self, command: Callable[..., _CommandRet], *args, **kwargs) -> CommandResult:
+		r"""
+		Call a command, print the output, and check the return code.
+
+		:param command:
+		:param \*args: Positional arguments passed to ``command``.
+		:param \*\*kwargs: Keyword arguments passed to ``command``.
+		"""
+
 		log = []
 
 		command_args, process = command(*args, **kwargs)
@@ -281,7 +299,13 @@ class Exporter:
 				return_code == 0,
 				)
 
-	def export(self) -> List[PathPlus]:
+	# TODO: function to export selected artifacts passed by e.g. command line
+
+	def export_all(self) -> List[PathPlus]:
+		"""
+		Clone, import resources and export all artifacts.
+		"""
+
 		self.output_dir.maybe_make(parents=True)
 		artifacts = []
 
@@ -375,7 +399,7 @@ def export_project(project_dir: PathLike, output_dir: PathLike, config: PozzoCon
 	"""
 
 	exporter = Exporter(project_dir, output_dir, config)
-	return exporter.export()
+	return exporter.export_all()
 
 
 def move_artifact(artifact: PathPlus, output_dir: PathPlus) -> PathPlus:
@@ -413,6 +437,12 @@ def get_source_epoch() -> Optional[datetime.datetime]:
 
 
 def zip_directory(directory: PathPlus, out_file: PathPlus) -> Iterator[PathPlus]:
+	"""
+	Compress all files in the given directory.
+
+	:param directory:
+	:param out_file:
+	"""
 
 	mtime = get_source_epoch()
 	files = list(directory.iterchildren())
