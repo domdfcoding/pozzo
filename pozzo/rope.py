@@ -27,11 +27,12 @@ Call Godot to create exports.
 #
 
 # stdlib
+import os
 import shlex
 import shutil
 import subprocess
 import typing
-from typing import Callable, Generator, List, Literal, NamedTuple, Optional, Tuple
+from typing import Callable, Generator, Iterable, List, Literal, NamedTuple, Optional, Tuple
 
 # 3rd party
 from consolekit.terminal_colours import Fore, Style
@@ -43,7 +44,16 @@ from domdf_python_tools.utils import stderr_writer
 from pozzo.config import PozzoConfigDict
 from pozzo.utils import has_pathsep
 
-__all__ = ["ProcessOutput", "clone_project", "export", "export_project", "import_resources"]
+__all__ = [
+		"CommandResult",
+		"ProcessOutput",
+		"clone_project",
+		"export",
+		"export_project",
+		"import_resources",
+		"join_args",
+		"run_command",
+		]
 
 T = typing.TypeVar('T')
 U = typing.TypeVar('U')
@@ -178,13 +188,22 @@ class CommandResult(NamedTuple):
 	succeeded: bool
 
 
+def join_args(split_command: Iterable[PathLike]):
+	"""
+	Return a shell-escaped string from ``split_command``.
+
+	:param split_command:
+	"""
+
+	return ' '.join(shlex.quote(os.fspath(arg)) for arg in split_command)
+
+
 def run_command(command: Callable, *args, **kwargs) -> CommandResult:
 	stdout_indent = "    "
 	log = []
 
 	command_args, process = command(*args, **kwargs)
-	print(stdout_indent, Style.DIM + '$', *command_args)
-	print(Style.DIM.reset, end='')
+	print(stdout_indent, Style.DIM('$' + join_args(command_args)))
 
 	for line in process:
 		log.append(line)
@@ -192,7 +211,7 @@ def run_command(command: Callable, *args, **kwargs) -> CommandResult:
 
 	return_code = process.return_code
 	if return_code != 0:
-		stderr_writer(Fore.RED(f"Process '{shlex.join(command_args)}' exited with code {return_code}"))
+		stderr_writer(Fore.RED(f"Process '{join_args(command_args)}' exited with code {return_code}"))
 
 	return CommandResult(
 			''.join(log),
@@ -249,8 +268,8 @@ def export_project(project_dir: PathPlus, output_dir: PathPlus, config: PozzoCon
 						raise NotImplementedError
 					else:
 						for artifact in export_output_dir.iterdir():
-							# dst = output_dir / artifact.name
-							artifacts.append(artifact.move(output_dir))
+							dst = output_dir / artifact.name
+							artifacts.append(artifact.move(dst))
 
 				assert not has_pathsep(export_name)
 				log_filename = (output_dir / f"{export_name}.log")
