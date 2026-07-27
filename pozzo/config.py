@@ -79,7 +79,7 @@ class PozzoConfigDict(TypedDict):
 	exports: Required[Dict[str, ExportTableDict]]  # todo: kt
 
 
-class ConfigTableParser(AbstractConfigParser):
+class ConfigTableParser(AbstractConfigParser[ConfigTableDict]):
 	"""
 	Parser for the ``config`` table in ``config.toml``.
 	"""
@@ -137,11 +137,11 @@ class ConfigTableParser(AbstractConfigParser):
 
 		return value
 
-	def parse(  # type: ignore[override]
-		self,
-		config: Dict[str, TOML_TYPES],
-		set_defaults: bool = True,
-	) -> ConfigTableDict:
+	def parse(
+			self,
+			config: Dict[str, TOML_TYPES],
+			set_defaults: bool = True,
+			) -> ConfigTableDict:
 		"""
 		Parse the TOML configuration.
 
@@ -153,7 +153,7 @@ class ConfigTableParser(AbstractConfigParser):
 		"""
 
 		parsed_config = super().parse(config, set_defaults)
-		return cast(ConfigTableDict, parsed_config)
+		return parsed_config
 
 	@classmethod
 	def default(cls) -> ConfigTableDict:
@@ -164,7 +164,7 @@ class ConfigTableParser(AbstractConfigParser):
 		return cls().parse({}, set_defaults=True)
 
 
-class ExportTableParser(AbstractConfigParser):
+class ExportTableParser(AbstractConfigParser[ExportTableDict]):
 	"""
 	Parser for a child of the ``exports`` table in ``config.toml``.
 
@@ -259,11 +259,11 @@ class ExportTableParser(AbstractConfigParser):
 
 		return value
 
-	def parse(  # type: ignore[override]
-		self,
-		config: Dict[str, TOML_TYPES],
-		set_defaults: bool = False,
-	) -> ExportTableDict:
+	def parse(
+			self,
+			config: Dict[str, TOML_TYPES],
+			set_defaults: bool = False,
+			) -> ExportTableDict:
 		"""
 		Parse the TOML configuration.
 
@@ -285,10 +285,10 @@ class ExportTableParser(AbstractConfigParser):
 								)
 
 		parsed_config = super().parse(config, set_defaults)
-		return cast(ExportTableDict, parsed_config)
+		return parsed_config
 
 
-class PozzoConfigParser(AbstractConfigParser):
+class PozzoConfigParser(AbstractConfigParser[PozzoConfigDict]):
 	"""
 	Parser for ``config.toml``.
 	"""
@@ -354,12 +354,11 @@ class PozzoConfigParser(AbstractConfigParser):
 
 		return exports
 
-
-	def parse(  # type: ignore[override]
-		self,
-		config: Dict[str, TOML_TYPES],
-		set_defaults: bool = True,
-	) -> PozzoConfigDict:
+	def parse(
+			self,
+			config: Dict[str, TOML_TYPES],
+			set_defaults: bool = True,
+			) -> PozzoConfigDict:
 		"""
 		Parse the TOML configuration.
 
@@ -371,7 +370,7 @@ class PozzoConfigParser(AbstractConfigParser):
 		"""
 
 		parsed_config = super().parse(config, set_defaults)
-		return cast(PozzoConfigDict, parsed_config)
+		return parsed_config
 
 	@classmethod
 	def default(cls) -> PozzoConfigDict:
