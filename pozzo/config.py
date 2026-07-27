@@ -34,6 +34,9 @@ from dom_toml.parser import TOML_TYPES, AbstractConfigParser, BadConfigError, co
 from domdf_python_tools.utils import strtobool
 from typing_extensions import NotRequired, Required, TypedDict
 
+# this package
+from pozzo.utils import has_pathsep
+
 __all__ = [
 		"ConfigTableDict",
 		"ConfigTableParser",
@@ -325,6 +328,9 @@ class PozzoConfigParser(AbstractConfigParser):
 		exports: Dict[str, ExportTableDict] = {}
 
 		for export_name, export_table in value.items():
+			if has_pathsep(export_name):
+				raise ValueError(f"Export name {export_name!r} may not contain path separators")
+
 			key_path = [key_name, export_name]
 			self.assert_type(export_table, dict, key_path)
 			assert isinstance(export_table, dict)
