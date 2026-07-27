@@ -35,28 +35,30 @@ import subprocess
 import sys
 import typing
 import zipfile
-from typing import Callable, Generator, Iterable, List, Literal, NamedTuple, Optional, Tuple
+from typing import Callable, Generator, Iterable, Iterator, List, Literal, NamedTuple, Optional, Tuple
 
 # 3rd party
 import handy_archives
 from consolekit.terminal_colours import Fore, Style
 from domdf_python_tools.paths import PathPlus, TemporaryPathPlus
 from domdf_python_tools.typing import PathLike
-from domdf_python_tools.utils import stderr_writer
 
 # this package
 from pozzo.config import PozzoConfigDict
-from pozzo.utils import has_pathsep
+from pozzo.utils import ProgressBar, has_pathsep
 
 __all__ = [
 		"CommandResult",
+		"Exporter",
 		"ProcessOutput",
 		"clone_project",
 		"export",
 		"export_project",
+		"get_source_epoch",
 		"import_resources",
 		"join_args",
-		"run_command",
+		"move_artifact",
+		"zip_directory",
 		]
 
 T = typing.TypeVar('T')
@@ -67,13 +69,28 @@ stdout_indent = "    "
 
 
 class ProcessOutput(typing.Generic[T, U, V]):
+	"""
+	Result of a subprocess.
+
+	:param generator:
+	"""
+
 	return_code: Optional[V] = None
+	"""
+	The return or exit code of the process.
+
+	Not set until :func:`~.stdout` is called.
+	"""
 
 	def __init__(self, generator: typing.Generator[T, U, V]):
 		self._generator = generator
 		super().__init__()
 
 	def stdout(self) -> typing.Generator[T, U, None]:
+		"""
+		Returns an iterator over the process's stdout.
+		"""
+
 		yield from self
 
 	def __iter__(self) -> typing.Generator[T, U, None]:
@@ -85,6 +102,14 @@ def clone_project(
 		target_dir: PathPlus,
 		recursive: bool = False,
 		) -> Tuple[List[PathLike], ProcessOutput[str, None, int]]:
+	"""
+	Make a clone of a git repository.
+
+	:param project_dir:
+	:param target_dir:
+	:param recursive:
+	"""
+
 	args: List[PathLike] = ["git", "clone"]
 
 	if recursive:
@@ -115,6 +140,15 @@ def import_resources(
 		project_dir: PathPlus,
 		godot: str = "godot",
 		) -> Tuple[List[str], ProcessOutput[str, None, int]]:
+	"""
+	Call Godot to import resources.
+
+	:param project_dir:
+	:param godot: Path or command for the Godot executable.
+
+	:returns: The command line arguments used, and the result of the process (stdout and return code).
+	"""
+
 	args = [godot, "--headless", "--import", "--verbose"]
 
 	def _import() -> Generator[str, None, int]:
@@ -145,6 +179,18 @@ def export(
 		mode: Literal["release", "debug", "pack", "patch"] = "release",
 		godot: str = "godot",
 		) -> Tuple[List[PathLike], ProcessOutput[str, None, int]]:
+	"""
+	Call Godot to export a given preset.
+
+	:param project_dir:
+	:param preset:
+	:param filename:
+	:param output_dir:
+	:param mode:
+	:param godot: Path or command for the Godot executable.
+
+	:returns: The command line arguments used, and the result of the process (stdout and return code).
+	"""
 
 	if ".." in filename:
 		raise ValueError("Relative filenames are not permitted")
@@ -190,6 +236,10 @@ def export(
 
 
 class CommandResult(NamedTuple):
+	"""
+	The result of calling a command with :meth:`~Exporter.run_command`.
+	"""
+
 	log: str
 	succeeded: bool
 
@@ -204,92 +254,139 @@ def join_args(split_command: Iterable[PathLike]) -> str:
 	return ' '.join(shlex.quote(os.fspath(arg)) for arg in split_command)
 
 
-def run_command(command: Callable, *args, **kwargs) -> CommandResult:
-	log = []
+class Exporter:
 
-	command_args, process = command(*args, **kwargs)
-	print(stdout_indent, Style.DIM('$' + join_args(command_args)))
+	def __init__(self, project_dir: PathLike, output_dir: PathLike, config: PozzoConfigDict):
+		self.project_dir = PathPlus(project_dir)
+		self.output_dir = PathPlus(output_dir)
+		self.config = config
+		self.progbar = ProgressBar(total=config["config"]["import_cycles"] + len(config["exports"]))
 
-	for line in process:
-		log.append(line)
-		print(stdout_indent, line, end='')
+	def run_command(self, command: Callable, *args, **kwargs) -> CommandResult:
+		log = []
 
-	return_code = process.return_code
-	if return_code != 0:
-		stderr_writer(Fore.RED(f"Process '{join_args(command_args)}' exited with code {return_code}"))
+		command_args, process = command(*args, **kwargs)
+		self.progbar.write(stdout_indent + Style.DIM('$' + join_args(command_args)))
 
-	return CommandResult(
-			''.join(log),
-			return_code == 0,
-			)
+		for line in process:
+			log.append(line)
+			self.progbar.write(stdout_indent + line, end='')
 
+		return_code = process.return_code
+		if return_code != 0:
+			self.progbar.error(f"Process '{join_args(command_args)}' exited with code {return_code}")
 
-def export_project(project_dir: PathPlus, output_dir: PathPlus, config: PozzoConfigDict) -> List[PathPlus]:
-	output_dir.maybe_make(parents=True)
-	artifacts = []
+		return CommandResult(
+				''.join(log),
+				return_code == 0,
+				)
 
-	with TemporaryPathPlus() as workdir:
+	def export(self) -> List[PathPlus]:
+		self.output_dir.maybe_make(parents=True)
+		artifacts = []
 
-		print(Style.BRIGHT("Cloning project into fresh directory."))
+		with TemporaryPathPlus() as workdir:
 
-		clone_result = run_command(clone_project, project_dir, workdir, config["config"]["checkout_submodules"])
-		if not clone_result.succeeded:
-			raise RuntimeError("Failed to clone repository.")
+			self.progbar.info("Cloning project into fresh directory.")
 
-		#
+			clone_result = self.run_command(
+					clone_project,
+					self.project_dir,
+					workdir,
+					self.config["config"]["checkout_submodules"],
+					)
+			if not clone_result.succeeded:
+				raise RuntimeError("Failed to clone repository.")
 
-		print()
-		print(Style.BRIGHT("Importing resources."))
+			self.progbar.update()
 
-		for _ in range(config["config"]["import_cycles"]):
+			#
 
-			import_result = run_command(import_resources, workdir, config["config"]["godot"])
-			if not import_result.succeeded:
-				raise RuntimeError("Godot failed to import resources.")
+			self.progbar.write('')
+			self.progbar.info("Importing resources.")
 
-		#
+			for _ in range(self.config["config"]["import_cycles"]):
 
-		for export_name, export_cfg in config["exports"].items():
+				import_result = self.run_command(import_resources, workdir, self.config["config"]["godot"])
+				if not import_result.succeeded:
+					raise RuntimeError("Godot failed to import resources.")
 
-			print()
-			print(Style.BRIGHT(f"Exporting {export_name!r}."))
+			self.progbar.update()
 
-			if export_cfg["preset_file"] != "export_presets.cfg":
-				raise NotImplementedError
+			#
 
-			with TemporaryPathPlus() as export_output_dir:
-				export_result = run_command(
-						export,
-						workdir,
-						export_cfg["preset"],
-						export_cfg["filename"],
-						export_output_dir,
-						export_cfg["mode"],
-						config["config"]["godot"],
-						)
+			for export_name, export_cfg in self.config["exports"].items():
 
-				assert not has_pathsep(export_name)
+				self.progbar.write('')
+				self.progbar.info(f"Exporting {export_name!r}.")
 
-				if export_result.succeeded:
-					if export_cfg["zip"]:
+				if export_cfg["preset_file"] != "export_presets.cfg":
+					raise NotImplementedError
 
-						print(stdout_indent, Style.BRIGHT("Creating ZIP archive."))
-						with TemporaryPathPlus() as zip_outdir:
-							zip_outfile = zip_outdir / f"{export_cfg['zip']}.zip"
-							zip_directory(export_output_dir, zip_outfile)
-							artifacts.append(move_artifact(zip_outfile, output_dir))
-					else:
-						for artifact in export_output_dir.iterdir():
-							artifacts.append(move_artifact(artifact, output_dir))
+				with TemporaryPathPlus() as export_output_dir:
+					export_result = self.run_command(
+							export,
+							workdir,
+							export_cfg["preset"],
+							export_cfg["filename"],
+							export_output_dir,
+							export_cfg["mode"],
+							self.config["config"]["godot"],
+							)
 
-				log_filename = (output_dir / f"{export_name}.log")
+					assert not has_pathsep(export_name)
+
+					if export_result.succeeded:
+						if export_cfg["zip"]:
+
+							self.progbar.write(stdout_indent + Style.BRIGHT("Creating ZIP archive."))
+							with TemporaryPathPlus() as zip_outdir:
+
+								zip_outfile = zip_outdir / f"{export_cfg['zip']}.zip"
+
+								for arcname in zip_directory(export_output_dir, zip_outfile):
+									self.progbar.write(stdout_indent * 2 + f"Writing {arcname.as_posix()}")
+
+								self.progbar.write(
+										stdout_indent
+										+ Fore.GREEN(f"Zip archive created at {zip_outfile.resolve().as_posix()}"),
+										)
+
+								artifacts.append(move_artifact(zip_outfile, self.output_dir))
+						else:
+							for artifact in export_output_dir.iterdir():
+								artifacts.append(move_artifact(artifact, self.output_dir))
+
+				log_filename = (self.output_dir / f"{export_name}.log")
 				log_filename.write_clean(export_result.log)
 				artifacts.append(log_filename)
+				self.progbar.update()
 
-	return artifacts
+		return artifacts
+
+
+def export_project(project_dir: PathLike, output_dir: PathLike, config: PozzoConfigDict) -> List[PathPlus]:
+	"""
+	Export the given project.
+
+	:param project_dir:
+	:param output_dir:
+	:param config:
+	"""
+
+	exporter = Exporter(project_dir, output_dir, config)
+	return exporter.export()
 
 
 def move_artifact(artifact: PathPlus, output_dir: PathPlus) -> PathPlus:
+	"""
+	Move the given artifact into the output directory.
+
+	:param artifact:
+	:param output_dir:
+	"""
+
+	output_dir.maybe_make(parents=True)
 	dst = output_dir / artifact.name
 	return artifact.move(dst)
 
@@ -315,7 +412,7 @@ def get_source_epoch() -> Optional[datetime.datetime]:
 		raise ValueError(f"'SOURCE_DATE_EPOCH' must be an integer with no fractional component, not {epoch!r}")
 
 
-def zip_directory(directory: PathPlus, out_file: PathPlus) -> List[PathPlus]:
+def zip_directory(directory: PathPlus, out_file: PathPlus) -> Iterator[PathPlus]:
 
 	mtime = get_source_epoch()
 	files = list(directory.iterchildren())
@@ -323,15 +420,7 @@ def zip_directory(directory: PathPlus, out_file: PathPlus) -> List[PathPlus]:
 	# Perhaps LZMA support in the future
 	with handy_archives.ZipFile(out_file, mode='w', compression=zipfile.ZIP_DEFLATED) as wheel_archive:
 		for file in files:
-			wheel_archive.write_file(
-					file,
-					arcname=file.relative_to(directory),
-					mtime=mtime,
-					)
+			arcname = file.relative_to(directory)
+			wheel_archive.write_file(file, arcname=arcname, mtime=mtime)
 
-			# TODO: iterator
-			print(stdout_indent * 2, f"Writing {file.relative_to(directory).as_posix()}")
-
-	print(stdout_indent * 2, Fore.GREEN(f"Zip archive created at {out_file.resolve().as_posix()}"))
-
-	return files
+			yield arcname

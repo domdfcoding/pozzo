@@ -2,4 +2,5 @@ consolekit>=1.13.0
 dom-toml>=2.4.0.b1
 domdf-python-tools>=3.10.0
 handy-archives>=0.2.0
+tqdm>=4.70.0
 typing-extensions>=4.13.2
