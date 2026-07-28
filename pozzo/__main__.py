@@ -82,8 +82,10 @@ def export(
 	config = load(config_file)
 	exporter = Exporter(project, output_dir, config, colour=resolve_color_default(colour), quiet=quiet)
 	artifacts = exporter.export_all()
+	exporter.progbar.close()
 
 	if not quiet:
+		exporter.report_errors_warnings("Export complete.")
 		print(f"Artifacts written to {outdir.abspath().relative_to(PathPlus.cwd()).as_posix()}:")
 
 	for file in artifacts:

@@ -285,6 +285,30 @@ class Exporter:
 				show=not quiet,
 				)
 
+	def report_errors_warnings(self, message: str) -> bool:
+		"""
+		Print a report of warnings and errors encountered, if any.
+
+		:param message:
+
+		:returns: Whether there were any warnings or errors.
+		"""
+
+		if self.progbar.has_error_or_warning():
+			message = ' '.join((message, "Encountered "))
+
+		if self.progbar.report_errors_warnings(message):
+			if self.progbar.warnings:
+				self.progbar.write(Fore.YELLOW("Warnings:"))
+				for warning in self.progbar.warnings:
+					self.progbar.write(f"    - {warning}")
+			if self.progbar.errors:
+				self.progbar.write(Fore.RED("Errors:"))
+				for error in self.progbar.errors:
+					self.progbar.write(f"    - {error}")
+
+		return self.progbar.has_error_or_warning()
+
 	def run_command(self, command: Callable[..., _CommandRet], *args, **kwargs) -> CommandResult:
 		r"""
 		Call a command, print the output, and check the return code.
