@@ -77,7 +77,7 @@ pozzo
 .. |language| image:: https://img.shields.io/github/languages/top/domdfcoding/pozzo
 	:alt: GitHub top language
 
-.. |commits-since| image:: https://img.shields.io/github/commits-since/domdfcoding/pozzo/v0.0.0
+.. |commits-since| image:: https://img.shields.io/github/commits-since/domdfcoding/pozzo/v0.1.0b1
 	:target: https://github.com/domdfcoding/pozzo/pulse
 	:alt: GitHub commits since tagged version
 
