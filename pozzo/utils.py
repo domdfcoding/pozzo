@@ -28,7 +28,7 @@ Call Godot to create exports.
 
 # stdlib
 import sys
-from typing import IO, Any, Iterable, Mapping, Optional, TextIO, Tuple, Union, overload
+from typing import IO, Any, Iterable, List, Mapping, Optional, TextIO, Tuple, Union, overload
 
 # 3rd party
 from araokaat import _T, araokaat
@@ -185,8 +185,8 @@ class ProgressLogger(araokaat[_T]):  # noqa: PRM002
 				delay=delay,
 				)
 
-		self._error_count = 0
-		self._warning_count = 0
+		self.errors: List[str] = []
+		self.warnings: List[str] = []
 
 	def info(self, message: str) -> None:
 		"""
@@ -235,7 +235,7 @@ class ProgressLogger(araokaat[_T]):  # noqa: PRM002
 		:param message:
 		"""
 
-		self._error_count += 1
+		self.errors.append(message)
 		self.write(Fore.RED(message))
 
 	def warning(self, message: str) -> None:
@@ -245,38 +245,52 @@ class ProgressLogger(araokaat[_T]):  # noqa: PRM002
 		:param message:
 		"""
 
-		self._warning_count += 1
+		self.warnings.append(message)
 		self.write(Fore.YELLOW(message))
 
-	def report_errors_warnings(self, message: str = '') -> None:
+	def report_errors_warnings(self, message: str = '') -> bool:
 		"""
 		Print the given message followed by a count of errors and warnings, if any.
 
 		:param message:
+
+		:returns: Whether there were any warnings or errors.
 		"""
 
-		if self._error_count:
-			if self._error_count >= 1:
-				message += f"{self._error_count} errors"
-			else:
-				message += f"{self._error_count} error"
+		error_count = len(self.errors)
+		warning_count = len(self.warnings)
 
-			if self._warning_count:
+		if error_count:
+			if error_count >= 1:
+				message += f"{error_count} errors"
+			else:
+				message += f"{error_count} error"
+
+			if warning_count:
 				message += "; "
 
-		if self._warning_count:
-			if self._warning_count >= 1:
-				message += f"{self._warning_count} warnings."
+		if warning_count:
+			if warning_count >= 1:
+				message += f"{warning_count} warnings."
 			else:
-				message += f"{self._warning_count} warning."
+				message += f"{warning_count} warning."
 
 		if message:
-			if self._error_count:
+			if error_count:
 				self.write(Fore.RED(message))
-			elif self._warning_count:
+			elif warning_count:
 				self.write(Fore.YELLOW(message))
 			else:
 				self.write(message)
+
+		return self.has_error_or_warning()
+
+	def has_error_or_warning(self) -> bool:
+		"""
+		Returns whether there were any warnings or errors.
+		"""
+
+		return bool(self.errors or self.warnings)
 
 	def set_total(self, total: int) -> None:
 		"""
