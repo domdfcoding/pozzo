@@ -216,7 +216,7 @@ def export(
 		raise ValueError(f"Unknown export mode {mode!r}")
 
 	args.append("--verbose")
-	args.extend((shlex.quote(preset), output_dir.absolute() / filename_p.name))
+	args.extend((preset, output_dir.absolute() / filename_p.name))
 
 	def _import() -> Generator[str, None, int]:
 		process = subprocess.Popen(
