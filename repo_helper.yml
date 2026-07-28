@@ -13,7 +13,6 @@ enable_conda: false
 enable_tests: false
 enable_docs: false
 use_whey: true
-on_pypi: false
 
 python_versions:
   - "3.8"

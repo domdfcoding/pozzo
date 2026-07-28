@@ -17,8 +17,10 @@ pozzo
 
 	* - Tests
 	  - |actions_linux| |actions_windows| |actions_macos|
+	* - PyPI
+	  - |pypi-version| |supported-versions| |supported-implementations| |wheel|
 	* - Activity
-	  - |commits-latest| |commits-since| |maintained|
+	  - |commits-latest| |commits-since| |maintained| |pypi-downloads|
 	* - QA
 	  - |codefactor| |actions_flake8| |actions_mypy|
 	* - Other
@@ -52,6 +54,22 @@ pozzo
 	:target: https://www.codefactor.io/repository/github/domdfcoding/pozzo
 	:alt: CodeFactor Grade
 
+.. |pypi-version| image:: https://img.shields.io/pypi/v/pozzo
+	:target: https://pypi.org/project/pozzo/
+	:alt: PyPI - Package Version
+
+.. |supported-versions| image:: https://img.shields.io/pypi/pyversions/pozzo?logo=python&logoColor=white
+	:target: https://pypi.org/project/pozzo/
+	:alt: PyPI - Supported Python Versions
+
+.. |supported-implementations| image:: https://img.shields.io/pypi/implementation/pozzo
+	:target: https://pypi.org/project/pozzo/
+	:alt: PyPI - Supported Implementations
+
+.. |wheel| image:: https://img.shields.io/pypi/wheel/pozzo
+	:target: https://pypi.org/project/pozzo/
+	:alt: PyPI - Wheel
+
 .. |license| image:: https://img.shields.io/github/license/domdfcoding/pozzo
 	:target: https://github.com/domdfcoding/pozzo/blob/master/LICENSE
 	:alt: License
@@ -70,6 +88,10 @@ pozzo
 .. |maintained| image:: https://img.shields.io/maintenance/yes/2026
 	:alt: Maintenance
 
+.. |pypi-downloads| image:: https://img.shields.io/pypi/dm/pozzo
+	:target: https://pypistats.org/packages/pozzo
+	:alt: PyPI - Downloads
+
 .. end shields
 
 Installation
@@ -77,12 +99,12 @@ Installation
 
 .. start installation
 
-``pozzo`` can be installed from GitHub.
+``pozzo`` can be installed from PyPI.
 
 To install with ``pip``:
 
 .. code-block:: bash
 
-	$ python -m pip install git+https://github.com/domdfcoding/pozzo
+	$ python -m pip install pozzo
 
 .. end installation
