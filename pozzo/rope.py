@@ -51,7 +51,7 @@ __all__ = [
 		"CommandResult",
 		"Exporter",
 		"ProcessOutput",
-		"clone_project",
+		"clone_repo",
 		"export",
 		"export_project",
 		"get_source_epoch",
@@ -100,15 +100,15 @@ class ProcessOutput(typing.Generic[T, U, V]):
 _CommandRet = Tuple[List[PathLike], ProcessOutput[str, None, int]]
 
 
-def clone_project(
-		project_dir: PathPlus,
+def clone_repo(
+		repo: str,
 		target_dir: PathPlus,
 		recursive: bool = False,
 		) -> _CommandRet:
 	"""
 	Make a clone of a git repository.
 
-	:param project_dir:
+	:param repo: Local path or URL for the project's git repository.
 	:param target_dir:
 	:param recursive:
 	"""
@@ -118,7 +118,7 @@ def clone_project(
 	if recursive:
 		args.append("--recursive")
 
-	args.extend((project_dir.abspath(), target_dir.abspath()))
+	args.extend((repo, target_dir.abspath()))
 
 	def clone() -> Generator[str, None, int]:
 		process = subprocess.Popen(
@@ -261,7 +261,7 @@ class Exporter:
 	"""
 	Clone and export Godot project repository.
 
-	:param project_dir:
+	:param project: Local path or URL for the project's git repository.
 	:param output_dir:
 	:param config:
 	:param colour: Whether to use colour in the output.
@@ -269,12 +269,12 @@ class Exporter:
 
 	def __init__(
 			self,
-			project_dir: PathLike,
+			project: str,
 			output_dir: PathLike,
 			config: PozzoConfigDict,
 			colour: ColourTrilean = None,
 			):
-		self.project_dir = PathPlus(project_dir)
+		self.project = project
 		self.output_dir = PathPlus(output_dir)
 		self.config = config
 		self.progbar: ProgressBar[None] = ProgressBar(
@@ -294,7 +294,7 @@ class Exporter:
 		log = []
 
 		command_args, process = command(*args, **kwargs)
-		self.progbar.write(stdout_indent + Style.DIM('$' + join_args(command_args)))
+		self.progbar.write(stdout_indent + Style.DIM("$ " + join_args(command_args)))
 
 		for line in process:
 			log.append(line)
@@ -314,8 +314,8 @@ class Exporter:
 		self.progbar.set_description_str("Clone")
 
 		clone_result = self.run_command(
-				clone_project,
-				self.project_dir,
+				clone_repo,
+				self.project,
 				workdir,
 				self.config["config"]["checkout_submodules"],
 				)
@@ -409,8 +409,6 @@ class Exporter:
 			self.progbar.write('')
 			self._import(workdir)
 
-			#
-
 			for export_name, export_cfg in self.config["exports"].items():
 				if export_name not in export_names:
 					continue
@@ -425,16 +423,16 @@ class Exporter:
 		return artifacts
 
 
-def export_project(project_dir: PathLike, output_dir: PathLike, config: PozzoConfigDict) -> List[PathPlus]:
+def export_project(project: str, output_dir: PathLike, config: PozzoConfigDict) -> List[PathPlus]:
 	"""
 	Export the given project.
 
-	:param project_dir:
+	:param project: Local path or URL for the project's git repository.
 	:param output_dir:
 	:param config:
 	"""
 
-	exporter = Exporter(project_dir, output_dir, config)
+	exporter = Exporter(project, output_dir, config)
 	return exporter.export_all()
 
 
