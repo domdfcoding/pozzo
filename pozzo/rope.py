@@ -39,7 +39,7 @@ from typing import Callable, Generator, Iterable, Iterator, List, Literal, Named
 
 # 3rd party
 import handy_archives
-from consolekit.terminal_colours import Fore, Style
+from consolekit.terminal_colours import ColourTrilean, Fore, Style
 from domdf_python_tools.paths import PathPlus, TemporaryPathPlus
 from domdf_python_tools.typing import PathLike
 
@@ -264,13 +264,23 @@ class Exporter:
 	:param project_dir:
 	:param output_dir:
 	:param config:
+	:param colour: Whether to use colour in the output.
 	"""
 
-	def __init__(self, project_dir: PathLike, output_dir: PathLike, config: PozzoConfigDict):
+	def __init__(
+			self,
+			project_dir: PathLike,
+			output_dir: PathLike,
+			config: PozzoConfigDict,
+			colour: ColourTrilean = None,
+			):
 		self.project_dir = PathPlus(project_dir)
 		self.output_dir = PathPlus(output_dir)
 		self.config = config
-		self.progbar = ProgressBar()
+		self.progbar: ProgressBar[None] = ProgressBar(
+				show_colours=colour,
+				bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}{postfix}]",
+				)
 
 	def run_command(self, command: Callable[..., _CommandRet], *args, **kwargs) -> CommandResult:
 		r"""
@@ -301,6 +311,7 @@ class Exporter:
 
 	def _clone(self, workdir: PathPlus) -> None:
 		self.progbar.info("Cloning project into fresh directory.")
+		self.progbar.set_description_str("Clone")
 
 		clone_result = self.run_command(
 				clone_project,
@@ -315,6 +326,7 @@ class Exporter:
 
 	def _import(self, workdir: PathPlus) -> None:
 		self.progbar.info("Importing resources.")
+		self.progbar.set_description_str("Import")
 
 		for _ in range(self.config["config"]["import_cycles"]):
 
@@ -405,6 +417,7 @@ class Exporter:
 
 				self.progbar.write('')
 				self.progbar.info(f"Exporting {export_name!r}.")
+				self.progbar.set_description_str(export_name)
 
 				for artifact in self._export(export_name, export_cfg, workdir):
 					artifacts.append(artifact)

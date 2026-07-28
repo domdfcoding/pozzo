@@ -26,11 +26,15 @@ Call Godot to create exports.
 #  OR OTHER DEALINGS IN THE SOFTWARE.
 #
 
+# stdlib
+import sys
+from typing import IO, Iterable, Mapping, Optional, TextIO, Tuple, TypeVar, Union
+
 # 3rd party
 import tqdm
-from consolekit.terminal_colours import Fore, Style
+from consolekit.terminal_colours import Fore, Style, resolve_color_default, strip_ansi
 
-__all__ = ["ProgressBar", "has_pathsep"]
+__all__ = ["ProgressBar", "has_pathsep", "should_show_colours"]
 
 
 def has_pathsep(value: str) -> bool:
@@ -56,8 +60,68 @@ class ProgressBar(tqdm.tqdm):  # noqa: PRM002
 
 	total: int
 
-	def __init__(self, *args, **kwargs):
-		super().__init__(*args, **kwargs)
+	def __init__(
+			self,
+			iterable: Optional[Iterable] = None,
+			desc: Optional[str] = None,
+			total: Optional[float] = None,
+			leave: bool = True,
+			file: IO = sys.stdout,
+			ncols: Optional[int] = None,
+			mininterval: float = 0.1,
+			maxinterval: float = 10.0,
+			miniters: Optional[float] = None,
+			ascii: Union[bool, str, None] = None,  # noqa: A002  # pylint: disable=redefined-builtin
+			unit: str = "it",
+			unit_scale: Union[bool, float] = False,
+			dynamic_ncols: bool = False,
+			smoothing: float = 0.3,
+			bar_format: Optional[str] = None,
+			initial: float = 0,
+			position: Optional[int] = None,
+			postfix: Union[Mapping[str, object], str, None] = None,
+			unit_divisor: float = 1000,
+			write_bytes: Optional[bool] = False,
+			lock_args: Union[Tuple[Optional[bool], Optional[float]], Tuple[Optional[bool]], None] = None,
+			nrows: Optional[int] = None,
+			colour: Optional[str] = None,
+			delay: Optional[float] = 0,
+			gui: bool = False,
+			show_colours: Optional[bool] = None,
+			) -> None:
+
+		self.show_colours = should_show_colours(stream=file, colour=resolve_color_default(show_colours))
+		if not self.show_colours:
+			colour = False  # type: ignore[assignment]
+
+		super().__init__(  # type: ignore[call-arg]
+			iterable,  # type: ignore[arg-type]
+			desc=desc,
+			total=total,
+			leave=leave,
+			file=file,
+			ncols=ncols,
+			mininterval=mininterval,
+			maxinterval=maxinterval,
+			miniters=miniters,
+			ascii=ascii,
+			disable=hasattr(sys.stdout, "isatty") and not sys.stdout.isatty(),
+			unit=unit,
+			unit_scale=unit_scale,
+			dynamic_ncols=dynamic_ncols,
+			smoothing=smoothing,
+			bar_format=bar_format,
+			initial=initial,
+			position=position,
+			postfix=postfix,
+			unit_divisor=unit_divisor,
+			write_bytes=write_bytes,
+			lock_args=lock_args,
+			nrows=nrows,
+			colour=colour,
+			delay=delay,
+			gui=gui,
+		)
 
 		self._error_count = 0
 		self._warning_count = 0
@@ -70,6 +134,34 @@ class ProgressBar(tqdm.tqdm):  # noqa: PRM002
 		"""
 
 		self.write(Style.BRIGHT(message))
+
+	def write(  # type: ignore[override]
+		self,
+		s: str,
+		file: Optional[TextIO] = None,
+		end: str = '\n',
+		nolock: bool = False,
+	) -> None:
+		"""
+		Write to stdout without overlapping the progressbar.
+
+		:param s:
+		:param file:
+		:param end:
+		:param nolock:
+		"""
+
+		# When outputting to a file instead of a terminal, strip codes.
+		if not self.show_colours:
+			s = strip_ansi(s)
+
+		super().write(s, file=file, end=end, nolock=nolock)
+
+		if not sys.stdout.isatty():
+			sys.stdout.flush()
+
+		if not sys.stdout.isatty():
+			sys.stderr.flush()
 
 	def error(self, message: str) -> None:
 		"""
@@ -130,3 +222,28 @@ class ProgressBar(tqdm.tqdm):  # noqa: PRM002
 
 		self.total = total
 		self.update(0)
+
+	def set_description_str(  # noqa: D102
+		self, desc: Optional[str] = None, refresh: Optional[bool] = True,
+	) -> None:
+		super().set_description_str(desc, refresh)  # type: ignore[misc]  # false positive
+
+
+def should_show_colours(stream: Optional[IO] = None, colour: Optional[bool] = None) -> bool:
+	"""
+	Whether ANSI control characters should be stripped from the output (e.g. if writing to file).
+
+	:param stream: File or ``sys.stdout`` etc. to write to.
+	:param colour: Whether to display colours (:py:obj:`None` for autodetection).
+	"""
+
+	if colour is None:
+		if stream is None:
+			stream = sys.stdin
+
+		try:
+			return stream.isatty()
+		except Exception:
+			return False
+
+	return colour
