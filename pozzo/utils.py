@@ -28,10 +28,10 @@ Call Godot to create exports.
 
 # stdlib
 import sys
-from typing import IO, Iterable, Mapping, Optional, TextIO, Tuple, TypeVar, Union
+from typing import IO, Any, Iterable, Mapping, Optional, TextIO, Tuple, Union, overload
 
 # 3rd party
-import tqdm
+from araokaat import _T, araokaat
 from consolekit.terminal_colours import Fore, Style, resolve_color_default, strip_ansi
 
 __all__ = ["ProgressBar", "has_pathsep", "should_show_colours"]
@@ -53,20 +53,19 @@ def has_pathsep(value: str) -> bool:
 	return False
 
 
-class ProgressBar(tqdm.tqdm):  # noqa: PRM002
+class ProgressLogger(araokaat[_T]):  # noqa: PRM002
 	"""
-	Customised ``tqdm`` progressbar.
+	Progressbar with additional log message helpers.
 	"""
 
-	total: int
-
+	@overload
 	def __init__(
-			self,
-			iterable: Optional[Iterable] = None,
-			desc: Optional[str] = None,
+			self: "ProgressLogger[None]",
+			iterable: None = None,
+			desc: str = '',
 			total: Optional[float] = None,
 			leave: bool = True,
-			file: IO = sys.stdout,
+			file: Optional[TextIO] = None,
 			ncols: Optional[int] = None,
 			mininterval: float = 0.1,
 			maxinterval: float = 10.0,
@@ -79,49 +78,102 @@ class ProgressBar(tqdm.tqdm):  # noqa: PRM002
 			bar_format: Optional[str] = None,
 			initial: float = 0,
 			position: Optional[int] = None,
-			postfix: Union[Mapping[str, object], str, None] = None,
+			postfix: Union[str, Mapping[str, Any], None] = None,
 			unit_divisor: float = 1000,
-			write_bytes: Optional[bool] = False,
 			lock_args: Union[Tuple[Optional[bool], Optional[float]], Tuple[Optional[bool]], None] = None,
 			nrows: Optional[int] = None,
 			colour: Optional[str] = None,
-			delay: Optional[float] = 0,
-			gui: bool = False,
+			delay: float = 0.0,
 			show_colours: Optional[bool] = None,
-			) -> None:
+			): ...
 
-		self.show_colours = should_show_colours(stream=file, colour=resolve_color_default(show_colours))
-		if not self.show_colours:
+	@overload
+	def __init__(
+			self: "ProgressLogger[_T]",
+			iterable: Iterable[_T],
+			desc: str = '',
+			total: Optional[float] = None,
+			leave: bool = True,
+			file: Optional[TextIO] = None,
+			ncols: Optional[int] = None,
+			mininterval: float = 0.1,
+			maxinterval: float = 10.0,
+			miniters: Optional[float] = None,
+			ascii: Union[bool, str, None] = None,  # noqa: A002  # pylint: disable=redefined-builtin
+			unit: str = "it",
+			unit_scale: Union[bool, float] = False,
+			dynamic_ncols: bool = False,
+			smoothing: float = 0.3,
+			bar_format: Optional[str] = None,
+			initial: float = 0,
+			position: Optional[int] = None,
+			postfix: Union[str, Mapping[str, Any], None] = None,
+			unit_divisor: float = 1000,
+			lock_args: Union[Tuple[Optional[bool], Optional[float]], Tuple[Optional[bool]], None] = None,
+			nrows: Optional[int] = None,
+			colour: Optional[str] = None,
+			delay: float = 0.0,
+			show_colours: Optional[bool] = None,
+			): ...
+
+	def __init__(
+			self,
+			iterable: Optional[Iterable[_T]] = None,
+			desc: str = '',
+			total: Optional[float] = None,
+			leave: bool = True,
+			file: Optional[TextIO] = None,
+			ncols: Optional[int] = None,
+			mininterval: float = 0.1,
+			maxinterval: float = 10.0,
+			miniters: Optional[float] = None,
+			ascii: Union[bool, str, None] = None,  # noqa: A002  # pylint: disable=redefined-builtin
+			unit: str = "it",
+			unit_scale: Union[bool, float] = False,
+			dynamic_ncols: bool = False,
+			smoothing: float = 0.3,
+			bar_format: Optional[str] = None,
+			initial: float = 0,
+			position: Optional[int] = None,
+			postfix: Union[str, Mapping[str, Any], None] = None,
+			unit_divisor: float = 1000,
+			lock_args: Union[Tuple[Optional[bool], Optional[float]], Tuple[Optional[bool]], None] = None,
+			nrows: Optional[int] = None,
+			colour: Optional[str] = None,
+			delay: float = 0.0,
+			show_colours: Optional[bool] = None,
+			):
+
+		self.show_colours = show_colours
+		if not should_show_colours(stream=file, colour=resolve_color_default(show_colours)):
 			colour = False  # type: ignore[assignment]
 
-		super().__init__(  # type: ignore[call-arg]
-			iterable,  # type: ignore[arg-type]
-			desc=desc,
-			total=total,
-			leave=leave,
-			file=file,
-			ncols=ncols,
-			mininterval=mininterval,
-			maxinterval=maxinterval,
-			miniters=miniters,
-			ascii=ascii,
-			disable=hasattr(sys.stdout, "isatty") and not sys.stdout.isatty(),
-			unit=unit,
-			unit_scale=unit_scale,
-			dynamic_ncols=dynamic_ncols,
-			smoothing=smoothing,
-			bar_format=bar_format,
-			initial=initial,
-			position=position,
-			postfix=postfix,
-			unit_divisor=unit_divisor,
-			write_bytes=write_bytes,
-			lock_args=lock_args,
-			nrows=nrows,
-			colour=colour,
-			delay=delay,
-			gui=gui,
-		)
+		super().__init__(
+				iterable,  # type: ignore[arg-type]  # TODO
+				desc=desc,
+				total=total,
+				leave=leave,
+				file=file,
+				ncols=ncols,
+				mininterval=mininterval,
+				maxinterval=maxinterval,
+				miniters=miniters,
+				ascii=ascii,
+				disable=hasattr(sys.stdout, "isatty") and not sys.stdout.isatty(),
+				unit=unit,
+				unit_scale=unit_scale,
+				dynamic_ncols=dynamic_ncols,
+				smoothing=smoothing,
+				bar_format=bar_format,
+				initial=initial,
+				position=position,
+				postfix=postfix,
+				unit_divisor=unit_divisor,
+				lock_args=lock_args,
+				nrows=nrows,
+				colour=colour,
+				delay=delay,
+				)
 
 		self._error_count = 0
 		self._warning_count = 0
@@ -135,13 +187,13 @@ class ProgressBar(tqdm.tqdm):  # noqa: PRM002
 
 		self.write(Style.BRIGHT(message))
 
-	def write(  # type: ignore[override]
-		self,
-		s: str,
-		file: Optional[TextIO] = None,
-		end: str = '\n',
-		nolock: bool = False,
-	) -> None:
+	def write(
+			self,
+			s: str,
+			file: TextIO = sys.stdout,
+			end: str = '\n',
+			nolock: bool = False,
+			) -> None:
 		"""
 		Write to stdout without overlapping the progressbar.
 
@@ -152,7 +204,7 @@ class ProgressBar(tqdm.tqdm):  # noqa: PRM002
 		"""
 
 		# When outputting to a file instead of a terminal, strip codes.
-		if not self.show_colours:
+		if not should_show_colours(stream=file, colour=resolve_color_default(self.show_colours)):
 			s = strip_ansi(s)
 
 		super().write(s, file=file, end=end, nolock=nolock)
@@ -222,11 +274,6 @@ class ProgressBar(tqdm.tqdm):  # noqa: PRM002
 
 		self.total = total
 		self.update(0)
-
-	def set_description_str(  # noqa: D102
-		self, desc: Optional[str] = None, refresh: Optional[bool] = True,
-	) -> None:
-		super().set_description_str(desc, refresh)  # type: ignore[misc]  # false positive
 
 
 def should_show_colours(stream: Optional[IO] = None, colour: Optional[bool] = None) -> bool:

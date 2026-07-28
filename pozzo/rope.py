@@ -45,7 +45,7 @@ from domdf_python_tools.typing import PathLike
 
 # this package
 from pozzo.config import ExportTableDict, PozzoConfigDict
-from pozzo.utils import ProgressBar, has_pathsep
+from pozzo.utils import ProgressLogger, has_pathsep
 
 __all__ = [
 		"CommandResult",
@@ -277,7 +277,7 @@ class Exporter:
 		self.project = project
 		self.output_dir = PathPlus(output_dir)
 		self.config = config
-		self.progbar: ProgressBar[None] = ProgressBar(
+		self.progbar: ProgressLogger[None] = ProgressLogger(
 				show_colours=colour,
 				bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}{postfix}]",
 				)
