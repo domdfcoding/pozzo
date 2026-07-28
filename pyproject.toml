@@ -22,6 +22,9 @@ Homepage = "https://github.com/domdfcoding/pozzo"
 "Issue Tracker" = "https://github.com/domdfcoding/pozzo/issues"
 "Source Code" = "https://github.com/domdfcoding/pozzo"
 
+[project.scripts]
+pozzo = "pozzo.__main__:main"
+
 [tool.whey]
 base-classifiers = [ "Typing :: Typed",]
 python-versions = [ "3.8", "3.9", "3.10", "3.11", "3.12",]

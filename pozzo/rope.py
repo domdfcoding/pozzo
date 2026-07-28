@@ -265,6 +265,7 @@ class Exporter:
 	:param output_dir:
 	:param config:
 	:param colour: Whether to use colour in the output.
+	:param quiet: Suppress progressbar and terminal log output.
 	"""
 
 	def __init__(
@@ -273,6 +274,7 @@ class Exporter:
 			output_dir: PathLike,
 			config: PozzoConfigDict,
 			colour: ColourTrilean = None,
+			quiet: bool = False,
 			):
 		self.project = project
 		self.output_dir = PathPlus(output_dir)
@@ -280,6 +282,7 @@ class Exporter:
 		self.progbar: ProgressLogger[None] = ProgressLogger(
 				show_colours=colour,
 				bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}{postfix}]",
+				show=not quiet,
 				)
 
 	def run_command(self, command: Callable[..., _CommandRet], *args, **kwargs) -> CommandResult:

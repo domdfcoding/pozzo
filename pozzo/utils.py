@@ -85,6 +85,7 @@ class ProgressLogger(araokaat[_T]):  # noqa: PRM002
 			colour: Optional[str] = None,
 			delay: float = 0.0,
 			show_colours: Optional[bool] = None,
+			show: bool = True,
 			): ...
 
 	@overload
@@ -114,6 +115,7 @@ class ProgressLogger(araokaat[_T]):  # noqa: PRM002
 			colour: Optional[str] = None,
 			delay: float = 0.0,
 			show_colours: Optional[bool] = None,
+			show: bool = True,
 			): ...
 
 	def __init__(
@@ -142,11 +144,19 @@ class ProgressLogger(araokaat[_T]):  # noqa: PRM002
 			colour: Optional[str] = None,
 			delay: float = 0.0,
 			show_colours: Optional[bool] = None,
+			show: bool = True,
 			):
+
+		self.show = show
 
 		self.show_colours = show_colours
 		if not should_show_colours(stream=file, colour=resolve_color_default(show_colours)):
 			colour = False  # type: ignore[assignment]
+
+		if self.show:
+			disable = hasattr(sys.stdout, "isatty") and not sys.stdout.isatty()
+		else:
+			disable = True
 
 		super().__init__(
 				iterable,  # type: ignore[arg-type]  # TODO
@@ -159,7 +169,7 @@ class ProgressLogger(araokaat[_T]):  # noqa: PRM002
 				maxinterval=maxinterval,
 				miniters=miniters,
 				ascii=ascii,
-				disable=hasattr(sys.stdout, "isatty") and not sys.stdout.isatty(),
+				disable=disable,
 				unit=unit,
 				unit_scale=unit_scale,
 				dynamic_ncols=dynamic_ncols,
@@ -202,6 +212,9 @@ class ProgressLogger(araokaat[_T]):  # noqa: PRM002
 		:param end:
 		:param nolock:
 		"""
+
+		if not self.show:
+			return
 
 		# When outputting to a file instead of a terminal, strip codes.
 		if not should_show_colours(stream=file, colour=resolve_color_default(self.show_colours)):

@@ -30,7 +30,10 @@ Parse TOML config.
 from typing import Any, Callable, ClassVar, Dict, List, Optional, Union, cast
 
 # 3rd party
+import dom_toml
 from dom_toml.parser import TOML_TYPES, AbstractConfigParser, BadConfigError, construct_path
+from domdf_python_tools.paths import PathPlus
+from domdf_python_tools.typing import PathLike
 from domdf_python_tools.utils import strtobool
 from typing_extensions import NotRequired, Required, TypedDict
 
@@ -44,6 +47,8 @@ __all__ = [
 		"ExportTableParser",
 		"PozzoConfigDict",
 		"PozzoConfigParser",
+		"load",
+		"loads",
 		]
 
 
@@ -379,3 +384,27 @@ class PozzoConfigParser(AbstractConfigParser[PozzoConfigDict]):
 		"""
 
 		return cls().parse({}, set_defaults=True)
+
+
+def loads(s: str) -> PozzoConfigDict:
+	"""
+	Parse TOML configuration from the given string.
+
+	:param s:
+	"""
+
+	if not isinstance(s, str):
+		raise TypeError("Expecting something like a string")
+
+	raw_config = dom_toml.loads(s)
+	return PozzoConfigParser().parse(raw_config, True)
+
+
+def load(filename: PathLike = "pozzo.toml") -> PozzoConfigDict:
+	"""
+	Parse TOML configuration from the given file.
+
+	:param filename: The filename to read from to.
+	"""
+
+	return loads(PathPlus(filename).read_text())
